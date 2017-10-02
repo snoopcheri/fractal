@@ -16,18 +16,6 @@ impl SimpleMandelbrotEngine {
     pub fn new(in_parallel: bool) -> SimpleMandelbrotEngine {
         SimpleMandelbrotEngine { in_parallel }
     }
-
-
-    fn calculate_for_pixel_iterator<I>(&self, region: &Region, pixel_iterator: I, pixel_offset: u32, pixels: &mut [u8])
-    where I: Iterator<Item=Pixel> {
-        for pixel in pixel_iterator {
-            let point = region.point_for_pixel(&pixel);
-            let escape = point.escape_time(region.max_iterations);
-
-            self.set_pixel(&pixel, escape, region.width_in_pixels, pixel_offset, pixels);
-        }
-    }
-
 }
 
 
@@ -41,7 +29,7 @@ impl MandelbrotEngine for SimpleMandelbrotEngine {
         let window = Window::new(0, 0, region.width_in_pixels, region.height_in_pixels);
         let pixel_iterator = WindowAreaIterator::new(&window);
 
-        self.calculate_for_pixel_iterator(region, pixel_iterator, 0, pixels);
+        calculate_for_pixel_iterator(region, pixel_iterator, 0, pixels);
     }
 
 
@@ -58,9 +46,19 @@ impl MandelbrotEngine for SimpleMandelbrotEngine {
                 let pixel_iterator = WindowLineIterator::new(&window, i as u32);
                 let pixel_offset = (i as u32) * region.width_in_pixels;
 
-                self.calculate_for_pixel_iterator(region, pixel_iterator, pixel_offset, pixel_band);
+                calculate_for_pixel_iterator(region, pixel_iterator, pixel_offset, pixel_band);
             });
     }
-
 }
 
+
+fn calculate_for_pixel_iterator<I>(region: &Region, pixel_iterator: I, pixel_offset: u32, pixels: &mut [u8])
+    where I: Iterator<Item=Pixel>
+{
+    for pixel in pixel_iterator {
+        let point = region.point_for_pixel(&pixel);
+        let escape = point.escape_time(region.max_iterations);
+
+        pixel.draw(escape, region.width_in_pixels, pixel_offset, pixels);
+    }
+}
