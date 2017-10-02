@@ -88,8 +88,13 @@ fn run() -> Result<()> {
         .arg(Arg::with_name("parallel")
             .short("p")
             .long("parallel")
-            .help("If specified the calculation is done in parallel")
-        )
+            .help("If specified the calculation is done in parallel"))
+        .arg(Arg::with_name("band-height")
+            .short("b")
+            .long("band-height")
+            .help("Specifies number of rows per band (only sensible in case of parallel execution of recursive engine)")
+            .value_name("BAND-HEIGHT")
+            .default_value("64"))
         .arg(Arg::with_name("engine")
             .short("e")
             .long("engine")
@@ -110,7 +115,13 @@ fn run() -> Result<()> {
     let (width, height) = parsed_resolution(arguments.value_of("resolution").unwrap()).chain_err(|| "parsing resolution failed")?;
     let max_iterations = parsed_max_iterations(arguments.value_of("max-iterations").unwrap()).chain_err(|| "parsing max iterations failed")?;
     let region = parsed_region(arguments.value_of("type"), arguments.value_of("center-and-radius"), width, height, max_iterations).chain_err(|| "parsing region failed")?;
-    let engine = parsed_engine(arguments.value_of("engine").unwrap(), arguments.is_present("parallel")).chain_err(|| "parsing engine type failed")?;
+
+
+    let engine = parsed_engine(arguments.value_of("engine").unwrap(),
+                               arguments.is_present("parallel"),
+                               arguments.value_of("band-height").unwrap())
+        .chain_err(|| "parsing engine type failed")?;
+
     let output_filename = arguments.value_of("output-filename").unwrap();
 
     let mandelbrot = Mandelbrot::new(region);
@@ -184,10 +195,14 @@ fn parsed_region(region_type: Option<&str>, center_and_radius: Option<&str>, wid
 }
 
 
-fn parsed_engine(engine_type: &str, in_parallel: bool) -> Result<Box<MandelbrotEngine>> {
+fn parsed_engine(engine_type: &str, in_parallel: bool, band_height: &str) -> Result<Box<MandelbrotEngine>> {
     match engine_type {
         "Default" => Ok(Box::new(SimpleMandelbrotEngine::new(in_parallel))),
-        "Recursive" => Ok(Box::new(RecursiveMandelbrotEngine::new(in_parallel))),
+        "Recursive" => {
+            let band_height = band_height.parse::<u32>().chain_err(|| "invalid band size")?;
+
+            Ok(Box::new(RecursiveMandelbrotEngine::new(in_parallel, band_height)))
+        },
         _ => bail!("unsupported engine type")
     }
 }

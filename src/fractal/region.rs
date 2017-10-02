@@ -42,8 +42,8 @@ impl Region {
 
     pub fn point_for_pixel(&self, pixel: &Pixel) -> Complex64 {
         Complex64 {
-            re: self.min_re + f64::from(pixel.x) * self.region_width / f64::from(self.width_in_pixels),
-            im: self.min_im + f64::from(pixel.y) * self.region_height / f64::from(self.height_in_pixels),
+            re: self.min_re + (pixel.x as f64) * self.region_width / (self.width_in_pixels as f64),
+            im: self.min_im + (pixel.y as f64) * self.region_height / (self.height_in_pixels as f64),
         }
     }
 }

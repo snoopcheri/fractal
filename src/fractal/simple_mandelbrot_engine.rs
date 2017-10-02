@@ -44,21 +44,21 @@ impl MandelbrotEngine for SimpleMandelbrotEngine {
         pixel_bands.into_par_iter()
             .for_each(|(i, pixel_band)| {
                 let pixel_iterator = WindowLineIterator::new(&window, i as u32);
-                let pixel_offset = (i as u32) * region.width_in_pixels;
+                let offset_in_pixels_slice = (i as u32) * region.width_in_pixels;
 
-                calculate_for_pixel_iterator(region, pixel_iterator, pixel_offset, pixel_band);
+                calculate_for_pixel_iterator(region, pixel_iterator, offset_in_pixels_slice, pixel_band);
             });
     }
 }
 
 
-fn calculate_for_pixel_iterator<I>(region: &Region, pixel_iterator: I, pixel_offset: u32, pixels: &mut [u8])
+fn calculate_for_pixel_iterator<I>(region: &Region, pixel_iterator: I, offset_in_pixels_slice: u32, pixels: &mut [u8])
     where I: Iterator<Item=Pixel>
 {
     for pixel in pixel_iterator {
         let point = region.point_for_pixel(&pixel);
         let escape = point.escape_time(region.max_iterations);
 
-        pixel.draw(escape, region.width_in_pixels, pixel_offset, pixels);
+        pixel.draw(escape, region.width_in_pixels, offset_in_pixels_slice, pixels);
     }
 }
