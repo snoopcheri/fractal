@@ -144,9 +144,10 @@ mod tests {
         let window = Window::new(10, 20, 6, 4);
         let iterator = WindowLineIterator::new(&window, 21);
 
-        for (idx, pixel) in iterator.enumerate() {
-            println!("{}: {:?}", idx, pixel);
-        }
+        // TODO: replace with proper assertion
+//        for (idx, pixel) in iterator.enumerate() {
+//            println!("{}: {:?}", idx, pixel);
+//        }
     }
 
     #[test]
@@ -154,9 +155,10 @@ mod tests {
         let window = Window::new(10, 20, 6, 4);
         let iterator = WindowAreaIterator::new(&window);
 
-        for (idx, pixel) in iterator.enumerate() {
-            println!("{}: {:?}", idx, pixel);
-        }
+        // TODO: replace with proper assertion
+//        for (idx, pixel) in iterator.enumerate() {
+//            println!("{}: {:?}", idx, pixel);
+//        }
     }
 
     #[test]
@@ -164,8 +166,9 @@ mod tests {
         let window = Window::new(10, 20, 6, 4);
         let iterator = WindowBorderIterator::new(&window);
 
-        for (idx, pixel) in iterator.enumerate() {
-            println!("{}: {:?}", idx, pixel);
-        }
+        // TODO: replace with proper assertion
+//        for (idx, pixel) in iterator.enumerate() {
+//            println!("{}: {:?}", idx, pixel);
+//        }
     }
 }
