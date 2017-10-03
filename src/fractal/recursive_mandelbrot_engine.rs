@@ -47,10 +47,10 @@ impl MandelbrotEngine for RecursiveMandelbrotEngine {
             .for_each(|(band_nr, pixel_band)| {
                 let band_nr = band_nr as u32;
                 let current_band_height = (pixel_band.len() as u32) / region.width_in_pixels;
-                let window_band = window_for_band(region, self.band_height, band_nr, current_band_height);
+                let band_window = window_for_band(region, self.band_height, band_nr, current_band_height);
                 let offset_in_pixels_slice = band_nr * self.band_height * region.width_in_pixels;
 
-                calculate_recursive(region, &window_band, offset_in_pixels_slice, pixel_band);
+                calculate_recursive(region, &band_window, offset_in_pixels_slice, pixel_band);
             });
     }
 }

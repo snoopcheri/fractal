@@ -47,7 +47,7 @@ impl Window {
         (left_part, right_part)
     }
 
-    pub fn vertically_split(self) -> (Window, Window) {
+    fn vertically_split(self) -> (Window, Window) {
         let upper_part = Window {
             height: self.height / 2,
             ..self
