@@ -4,6 +4,7 @@ pub mod mandelbrot_engine;
 pub mod simple_mandelbrot_engine;
 pub mod recursive_mandelbrot_engine;
 
+mod pixel_band;
 mod pixel;
 mod window;
 mod window_iterator;
