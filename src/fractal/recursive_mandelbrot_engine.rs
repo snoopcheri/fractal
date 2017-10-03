@@ -5,6 +5,7 @@ use super::mandelbrot_engine::MandelbrotEngine;
 use super::region::Region;
 use super::window::Window;
 use super::pixel::Pixel;
+use super::pixel_band::PixelBand;
 use super::window_iterator::WindowAreaIterator;
 use super::window_iterator::WindowBorderIterator;
 use super::escape_time::EscapeTime;
@@ -30,27 +31,32 @@ impl MandelbrotEngine for RecursiveMandelbrotEngine {
 
     fn calculate_serially(&self, region: &Region, pixels: &mut Vec<u8>) {
         let window = Window::new(0, 0, region.width_in_pixels, region.height_in_pixels);
+        let mut pixel_band = PixelBand::new(pixels, 0);
 
-        calculate_recursive(region, &window, 0, pixels);
+        calculate_recursive(region, &window, &mut pixel_band);
     }
 
 
     fn calculate_in_parallel(&self, region: &Region, pixels: &mut Vec<u8>) {
         verify_band_height_for_region(self.band_height, region);
 
-        let pixel_bands: Vec<(usize, &mut [u8])> = pixels
-            .chunks_mut((region.width_in_pixels * self.band_height) as usize)
+        let band_width = (region.width_in_pixels * self.band_height) as usize;
+        let workload: Vec<(PixelBand, Window)> = pixels
+            .chunks_mut(band_width)
             .enumerate()
+            .map(|(i, pixel_chunk)| {
+                let current_band_height = pixel_chunk.len() as u32 / region.width_in_pixels;
+
+                (
+                    ith_pixel_band(i, pixel_chunk, band_width),
+                    ith_window(i, region.width_in_pixels, self.band_height, current_band_height),
+                )
+            })
             .collect();
 
-        pixel_bands.into_par_iter()
-            .for_each(|(band_nr, pixel_band)| {
-                let band_nr = band_nr as u32;
-                let current_band_height = (pixel_band.len() as u32) / region.width_in_pixels;
-                let band_window = window_for_band(region, self.band_height, band_nr, current_band_height);
-                let offset_in_pixels_slice = band_nr * self.band_height * region.width_in_pixels;
-
-                calculate_recursive(region, &band_window, offset_in_pixels_slice, pixel_band);
+        workload.into_par_iter()
+            .for_each(|(mut pixel_band, window)| {
+                calculate_recursive(region, &window, &mut pixel_band);
             });
     }
 }
@@ -60,7 +66,7 @@ fn verify_band_height_for_region(band_height: u32, region: &Region) {
     let number_of_bands = ((region.height_in_pixels as f64) / (band_height as f64)).ceil() as u32;
     assert!(number_of_bands > 0);
 
-    let last_band_height = region.height_in_pixels - (number_of_bands-1) * band_height;
+    let last_band_height = region.height_in_pixels - (number_of_bands - 1) * band_height;
     assert!(last_band_height >= 8);
 
     let number_of_cpus = num_cpus::get();
@@ -72,33 +78,38 @@ fn verify_band_height_for_region(band_height: u32, region: &Region) {
 }
 
 
-fn window_for_band(region: &Region, band_height: u32, band_nr: u32, current_band_height: u32) -> Window {
+fn ith_pixel_band(i: usize, pixel_chunk: &mut [u8], chunk_size: usize) -> PixelBand {
+    PixelBand::new(pixel_chunk, i * chunk_size)
+}
+
+
+fn ith_window(i: usize, width: u32, band_height: u32, current_band_height: u32) -> Window {
     Window::new(
         0,
-        band_nr * band_height,
-        region.width_in_pixels,
-        current_band_height
+        (i as u32) * band_height,
+        width,
+        current_band_height,
     )
 }
 
 
-fn calculate_recursive(region: &Region, window: &Window, offset_in_pixels_slice: u32, pixels: &mut [u8]) {
+fn calculate_recursive(region: &Region, window: &Window, pixel_band: &mut PixelBand) {
     let unique_escape = unique_escape_for(region, window);
 
     if let Some(escape) = unique_escape {
-        fill_window(region, window, escape, offset_in_pixels_slice, pixels);
+        fill_window(region, window, escape, pixel_band);
         return;
     }
 
     let (part1, optional_part2) = window.split_if_sensible();
 
     if let Some(part2) = optional_part2 {
-        calculate_recursive(region, &part1, offset_in_pixels_slice, pixels);
-        calculate_recursive(region, &part2, offset_in_pixels_slice, pixels);
+        calculate_recursive(region, &part1, pixel_band);
+        calculate_recursive(region, &part2, pixel_band);
         return;
     }
 
-    calculate_window(region, window, offset_in_pixels_slice, pixels);
+    calculate_window(region, window, pixel_band);
 }
 
 
@@ -122,22 +133,22 @@ fn unique_escape_for(region: &Region, window: &Window) -> Option<u8> {
 }
 
 
-fn fill_window(region: &Region, window: &Window, escape: u8, offset_in_pixels_slice: u32, pixels: &mut [u8]) {
+fn fill_window(region: &Region, window: &Window, color: u8, pixel_band: &mut PixelBand) {
     let window_area_pixels = WindowAreaIterator::new(window);
 
     for pixel in window_area_pixels {
-        pixel.draw(escape, region.width_in_pixels, offset_in_pixels_slice, pixels);
+        pixel_band.set_color_of_pixel(color, &pixel, region.width_in_pixels);
     }
 }
 
 
-fn calculate_window(region: &Region, window: &Window, offset_in_pixels_slice: u32, pixels: &mut [u8]) {
+fn calculate_window(region: &Region, window: &Window, pixel_band: &mut PixelBand) {
     let window_area_pixels = WindowAreaIterator::new(window);
 
     for pixel in window_area_pixels {
         let point = region.point_for_pixel(&pixel);
-        let escape = point.escape_time(region.max_iterations);
+        let color = point.escape_time(region.max_iterations);
 
-        pixel.draw(escape, region.width_in_pixels, offset_in_pixels_slice, pixels);
+        pixel_band.set_color_of_pixel(color, &pixel, region.width_in_pixels);
     }
 }

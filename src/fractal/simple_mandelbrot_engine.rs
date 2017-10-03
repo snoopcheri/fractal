@@ -6,6 +6,7 @@ use super::window::Window;
 use super::window_iterator::{WindowLineIterator, WindowAreaIterator};
 use super::escape_time::EscapeTime;
 use super::pixel::Pixel;
+use super::pixel_band::PixelBand;
 
 
 pub struct SimpleMandelbrotEngine {
@@ -29,36 +30,51 @@ impl MandelbrotEngine for SimpleMandelbrotEngine {
         let window = Window::new(0, 0, region.width_in_pixels, region.height_in_pixels);
         let pixel_iterator = WindowAreaIterator::new(&window);
 
-        calculate_for_pixel_iterator(region, pixel_iterator, 0, pixels);
+        let mut pixel_band = PixelBand::new(pixels, 0);
+        calculate_for_pixel_iterator(region, pixel_iterator, &mut pixel_band);
     }
 
 
     fn calculate_in_parallel(&self, region: &Region, pixels: &mut Vec<u8>) {
         let window = Window::new(0, 0, region.width_in_pixels, region.height_in_pixels);
 
-        let pixel_bands: Vec<(usize, &mut [u8])> = pixels
-            .chunks_mut(region.width_in_pixels as usize)
+        let chunk_size = region.width_in_pixels as usize;
+        let workload: Vec<(PixelBand, WindowLineIterator)> = pixels
+            .chunks_mut(chunk_size)
             .enumerate()
+            .map(|(i, pixel_chunk)| {
+                (
+                    ith_pixel_band(i, pixel_chunk, chunk_size),
+                    ith_pixel_iterator(i, &window),
+                )
+            })
             .collect();
 
-        pixel_bands.into_par_iter()
-            .for_each(|(i, pixel_band)| {
-                let pixel_iterator = WindowLineIterator::new(&window, i as u32);
-                let offset_in_pixels_slice = (i as u32) * region.width_in_pixels;
-
-                calculate_for_pixel_iterator(region, pixel_iterator, offset_in_pixels_slice, pixel_band);
+        workload.into_par_iter()
+            .for_each(|(mut pixel_band, pixel_iterator)| {
+                calculate_for_pixel_iterator(region, pixel_iterator, &mut pixel_band);
             });
     }
 }
 
 
-fn calculate_for_pixel_iterator<I>(region: &Region, pixel_iterator: I, offset_in_pixels_slice: u32, pixels: &mut [u8])
+fn ith_pixel_band(i: usize, pixel_chunk: &mut [u8], chunk_size: usize) -> PixelBand {
+    PixelBand::new(pixel_chunk, i * chunk_size)
+}
+
+
+fn ith_pixel_iterator(i: usize, window: &Window) -> WindowLineIterator {
+    WindowLineIterator::new(window, i as u32)
+}
+
+
+fn calculate_for_pixel_iterator<I>(region: &Region, pixel_iterator: I, pixel_band: &mut PixelBand)
     where I: Iterator<Item=Pixel>
 {
     for pixel in pixel_iterator {
         let point = region.point_for_pixel(&pixel);
-        let escape = point.escape_time(region.max_iterations);
+        let color = point.escape_time(region.max_iterations);
 
-        pixel.draw(escape, region.width_in_pixels, offset_in_pixels_slice, pixels);
+        pixel_band.set_color_of_pixel(color, &pixel, region.width_in_pixels);
     }
 }
