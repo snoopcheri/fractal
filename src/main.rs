@@ -30,7 +30,7 @@ use clap::{App, Arg};
 use image::png::PNGEncoder;
 use image::ColorType;
 use num::complex::Complex64;
-use fractal::*;
+use fractal::prelude::*;
 
 
 fn main() {
