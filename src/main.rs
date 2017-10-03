@@ -114,7 +114,8 @@ fn run() -> Result<()> {
 
     let (width, height) = parsed_resolution(arguments.value_of("resolution").unwrap()).chain_err(|| "parsing resolution failed")?;
     let max_iterations = parsed_max_iterations(arguments.value_of("max-iterations").unwrap()).chain_err(|| "parsing max iterations failed")?;
-    let region = parsed_region(arguments.value_of("type"), arguments.value_of("center-and-radius"), width, height, max_iterations).chain_err(|| "parsing region failed")?;
+    let region = parsed_region(arguments.value_of("type"), arguments.value_of("center-and-radius")).chain_err(|| "parsing region failed")?;
+    let mandelbrot = Mandelbrot::new(region, width, height, max_iterations);
 
 
     let engine = parsed_engine(arguments.value_of("engine").unwrap(),
@@ -124,7 +125,6 @@ fn run() -> Result<()> {
 
     let output_filename = arguments.value_of("output-filename").unwrap();
 
-    let mandelbrot = Mandelbrot::new(region);
     create_mandelbrot_file(&mandelbrot, &*engine, output_filename)?;
 
     Ok(())
@@ -136,7 +136,7 @@ fn create_mandelbrot_file(mandelbrot: &Mandelbrot, engine: &MandelbrotEngine, ou
 
     let output = File::create(output_filename)?;
     let png_encoder = PNGEncoder::new(output);
-    png_encoder.encode(pixels.as_slice(), mandelbrot.region.width_in_pixels as u32, mandelbrot.region.height_in_pixels as u32, ColorType::Gray(8))?;
+    png_encoder.encode(pixels.as_slice(), mandelbrot.width, mandelbrot.height, ColorType::Gray(8))?;
 
     Ok(())
 }
@@ -165,7 +165,7 @@ fn parsed_max_iterations(max_iterations: &str) -> Result<u8> {
 }
 
 
-fn parsed_region(region_type: Option<&str>, center_and_radius: Option<&str>, width: u32, height: u32, max_iterations: u8) -> Result<Region> {
+fn parsed_region(region_type: Option<&str>, center_and_radius: Option<&str>) -> Result<Region> {
     if let Some(region_type) = region_type {
         let region_type = match region_type {
             "SeaHorseValley" => RegionType::SeaHorseValley,
@@ -173,7 +173,7 @@ fn parsed_region(region_type: Option<&str>, center_and_radius: Option<&str>, wid
             _ => bail!("unsupported region type")
         };
 
-        return Ok(Region::new_for_type(region_type, width, height, max_iterations));
+        return Ok(Region::new_for_type(region_type));
     }
 
     if let Some(center_and_radius) = center_and_radius {
@@ -188,7 +188,7 @@ fn parsed_region(region_type: Option<&str>, center_and_radius: Option<&str>, wid
         let center_im = tokens[1].parse::<f64>().chain_err(|| "invalid center_im")?;
         let radius = tokens[2].parse::<f64>().chain_err(|| "invalid radius")?;
 
-        return Ok(Region::new_for_center(Complex64::new(center_re, center_im), radius, width, height, max_iterations));
+        return Ok(Region::new_for_center(Complex64::new(center_re, center_im), radius));
     }
 
     bail!("either region or center/radius have to be specified");

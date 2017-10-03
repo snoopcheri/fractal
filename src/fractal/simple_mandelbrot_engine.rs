@@ -1,7 +1,7 @@
 use rayon::prelude::*;
 
 use super::mandelbrot_engine::MandelbrotEngine;
-use super::region::Region;
+use super::mandelbrot::Mandelbrot;
 use super::window::Window;
 use super::window_iterator::{WindowLineIterator, WindowAreaIterator};
 use super::escape_time::EscapeTime;
@@ -26,19 +26,19 @@ impl MandelbrotEngine for SimpleMandelbrotEngine {
     }
 
 
-    fn calculate_serially(&self, region: &Region, pixels: &mut Vec<u8>) {
-        let window = Window::new(0, 0, region.width_in_pixels, region.height_in_pixels);
+    fn calculate_serially(&self, mandelbrot: &Mandelbrot, pixels: &mut Vec<u8>) {
+        let window = Window::new(0, 0, mandelbrot.width, mandelbrot.height);
         let pixel_iterator = WindowAreaIterator::new(&window);
 
         let mut pixel_band = PixelBand::new(pixels, 0);
-        calculate_for_pixel_iterator(region, pixel_iterator, &mut pixel_band);
+        calculate_for_pixel_iterator(mandelbrot, pixel_iterator, &mut pixel_band);
     }
 
 
-    fn calculate_in_parallel(&self, region: &Region, pixels: &mut Vec<u8>) {
-        let window = Window::new(0, 0, region.width_in_pixels, region.height_in_pixels);
+    fn calculate_in_parallel(&self, mandelbrot: &Mandelbrot, pixels: &mut Vec<u8>) {
+        let window = Window::new(0, 0, mandelbrot.width, mandelbrot.height);
 
-        let chunk_size = region.width_in_pixels as usize;
+        let chunk_size = mandelbrot.width as usize;
         let workload: Vec<(PixelBand, WindowLineIterator)> = pixels
             .chunks_mut(chunk_size)
             .enumerate()
@@ -52,7 +52,7 @@ impl MandelbrotEngine for SimpleMandelbrotEngine {
 
         workload.into_par_iter()
             .for_each(|(mut pixel_band, pixel_iterator)| {
-                calculate_for_pixel_iterator(region, pixel_iterator, &mut pixel_band);
+                calculate_for_pixel_iterator(mandelbrot, pixel_iterator, &mut pixel_band);
             });
     }
 }
@@ -68,13 +68,13 @@ fn ith_pixel_iterator(i: usize, window: &Window) -> WindowLineIterator {
 }
 
 
-fn calculate_for_pixel_iterator<I>(region: &Region, pixel_iterator: I, pixel_band: &mut PixelBand)
+fn calculate_for_pixel_iterator<I>(mandelbrot: &Mandelbrot, pixel_iterator: I, pixel_band: &mut PixelBand)
     where I: Iterator<Item=Pixel>
 {
     for pixel in pixel_iterator {
-        let point = region.point_for_pixel(&pixel);
-        let color = point.escape_time(region.max_iterations);
+        let point = mandelbrot.point_for_pixel(&pixel);
+        let color = point.escape_time(mandelbrot.max_iterations);
 
-        pixel_band.set_color_of_pixel(color, &pixel, region.width_in_pixels);
+        pixel_band.set_color_of_pixel(color, &pixel, mandelbrot.width);
     }
 }
