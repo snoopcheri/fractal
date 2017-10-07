@@ -3,10 +3,6 @@ name = "fractal"
 version = "0.1.0"
 authors = ["Sargon <sargon@me.com>"]
 
-#[lib]
-#name = "fractal"
-#path = "src/lib.rs"
-
 [[bin]]
 name = "fractal"
 path = "src/main.rs"
